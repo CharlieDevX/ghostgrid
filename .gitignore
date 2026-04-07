@@ -1,0 +1,10 @@
+# Credentials — never commit real secrets
+backend/.env
+
+# Python bytecode
+backend/__pycache__/
+backend/routers/__pycache__/
+
+# Node dependencies and build output
+frontend/node_modules/
+frontend/dist/
