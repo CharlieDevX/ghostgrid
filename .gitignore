@@ -1,6 +1,10 @@
 # Credentials — never commit real secrets
 backend/.env
 
+# Claude/project brain docs — private
+*.md
+.claude/
+
 # Python bytecode
 backend/__pycache__/
 backend/routers/__pycache__/

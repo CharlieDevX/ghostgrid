@@ -34,6 +34,19 @@ h1, h2, h3 { color: var(--accent); }
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 18px 20px;
+  height: 100%;
+  overflow: auto;
+  box-sizing: border-box;
+}
+
+/* react-grid-layout: make grid items fill their cell */
+.react-grid-item {
+  display: flex;
+  flex-direction: column;
+}
+.react-grid-item > * {
+  flex: 1;
+  min-height: 0;
 }
 
 .widget-title {

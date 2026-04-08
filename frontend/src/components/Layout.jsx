@@ -52,11 +52,12 @@ export default function Layout() {
         bottom: 0,
       }}>
         {/* Logo */}
-        <div style={{ padding: '0 20px 24px' }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--accent)', letterSpacing: '-0.5px' }}>
-            GhostGrid
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>homelab dashboard</div>
+        <div style={{ padding: '0 16px 24px' }}>
+          <img
+            src="/logo.png"
+            alt="GhostGrid"
+            style={{ width: '100%', borderRadius: 8 }}
+          />
         </div>
 
         {/* Nav links */}

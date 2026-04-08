@@ -41,13 +41,19 @@ export default function DockerWidget() {
       {containers.length === 0
         ? <p style={{ color: 'var(--muted)' }}>No containers found.</p>
         : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: '18%' }} />
+              <col style={{ width: '52%' }} />
+              <col style={{ width: '16%' }} />
+              <col style={{ width: '14%' }} />
+            </colgroup>
             <tbody>
               {containers.map(c => (
                 <tr key={c.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                  <td style={{ padding: '8px 0', fontWeight: 500 }}>{c.name}</td>
-                  <td style={{ padding: '8px 0', color: 'var(--muted)', fontSize: 12, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {c.image}
+                  <td style={{ padding: '8px 0', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</td>
+                  <td style={{ padding: '8px 0', color: 'var(--muted)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span>{c.image}</span>
                   </td>
                   <td style={{ padding: '8px 0' }}>
                     <span className={`tag ${c.running ? 'tag-green' : 'tag-red'}`}>
