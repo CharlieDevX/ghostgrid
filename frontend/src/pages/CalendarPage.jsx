@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 
 // ── constants ────────────────────────────────────────────────────────────────
 const HOUR_H = 64        // px per hour
-const DAY_START = 6      // 6 AM
-const DAY_END = 23       // 11 PM
+const DAY_START = 0      // 12 AM
+const DAY_END = 24       // midnight (next day)
 const TOTAL_HOURS = DAY_END - DAY_START
 const GRID_H = TOTAL_HOURS * HOUR_H
+const MIN_CHIP_PX = 28   // minimum visible height for a clipped end-of-day event
 
 const PRESET_COLORS = [
   '#7aa2f7','#9ece6a','#bb9af7','#f7768e',
@@ -884,10 +885,10 @@ function WeekView({ viewDate, parsedEvents, today, configured, completedTaskUids
       </div>
 
       {/* All-day strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(7, 1fr)', borderBottom: '1px solid var(--border)', minHeight: 28, flexShrink: 0 }}>
-        <div style={{ fontSize: 10, color: 'var(--muted)', padding: '6px 4px', textAlign: 'right' }}>all‑day</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(7, 1fr)', borderBottom: '2px solid var(--border)', minHeight: 36, flexShrink: 0, background: 'rgba(255,255,255,0.02)' }}>
+        <div style={{ fontSize: 10, color: 'var(--muted)', padding: '6px 4px', textAlign: 'right', borderRight: '1px solid var(--border)' }}>all‑day</div>
         {weekDays.map((day, i) => (
-          <div key={i} style={{ borderLeft: '1px solid var(--border)', padding: '3px 4px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div key={i} style={{ borderLeft: i > 0 ? '1px solid var(--border)' : 'none', padding: '3px 4px', display: 'flex', flexDirection: 'column', gap: 2 }}>
             {allDayForDay(day).map(e => (
               <div key={e.id} title={e.title}
                 onClick={ev => { ev.stopPropagation(); onEventClick(e) }}
@@ -921,7 +922,7 @@ function WeekView({ viewDate, parsedEvents, today, configured, completedTaskUids
             const dayEvs = layoutEvents(timedForDay(day))
             return (
               <div key={di}
-                style={{ borderLeft: '1px solid var(--border)', position: 'relative', cursor: configured ? 'crosshair' : 'default' }}
+                style={{ borderLeft: '1px solid var(--border)', position: 'relative', cursor: configured ? 'crosshair' : 'default', overflow: 'hidden' }}
                 onClick={e => {
                   if (!configured) return
                   const rect = e.currentTarget.getBoundingClientRect()
@@ -943,14 +944,16 @@ function WeekView({ viewDate, parsedEvents, today, configured, completedTaskUids
                 })()}
 
                 {dayEvs.map(ev => {
-                  const top = topPx(ev._start)
-                  const h = heightPx(ev._start, ev._end)
+                  const top  = topPx(ev._start)
+                  const h    = heightPx(ev._start, ev._end)
                   const colW = 100 / ev._cols
+                  const t    = Math.min(top, GRID_H - MIN_CHIP_PX)
+                  const visH = Math.max(MIN_CHIP_PX, Math.min(h, GRID_H - t))
                   return (
                     <div key={ev.id}
                       onClick={e => { e.stopPropagation(); onEventClick(ev) }}
                       style={{
-                        position: 'absolute', top, height: h,
+                        position: 'absolute', top: t, height: visH,
                         left: `${ev._col * colW}%`, width: `calc(${colW}% - 3px)`,
                         background: ev.color ?? 'var(--accent)',
                         borderRadius: 5, padding: '2px 5px', overflow: 'hidden', zIndex: 5, cursor: 'pointer',
@@ -959,7 +962,7 @@ function WeekView({ viewDate, parsedEvents, today, configured, completedTaskUids
                       <div style={{ fontSize: 11, fontWeight: 700, color: '#1a1b26', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {ev.title}
                       </div>
-                      {h > 36 && <div style={{ fontSize: 10, color: 'rgba(26,27,38,0.75)' }}>{fmtTime(ev._start)}</div>}
+                      {visH > 36 && <div style={{ fontSize: 10, color: 'rgba(26,27,38,0.75)' }}>{fmtTime(ev._start)}</div>}
                     </div>
                   )
                 })}
@@ -1005,26 +1008,24 @@ function DayView({ viewDate, parsedEvents, today, configured, completedTaskUids 
         </div>
       </div>
 
-      {/* All-day strip */}
-      {allDayEvs.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: '52px 1fr', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-          <div style={{ fontSize: 10, color: 'var(--muted)', padding: '6px 4px', textAlign: 'right' }}>all‑day</div>
-          <div style={{ borderLeft: '1px solid var(--border)', padding: '3px 8px', display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {allDayEvs.map(e => (
-              <div key={e.id} title={e.title}
-                onClick={ev => { ev.stopPropagation(); onEventClick(e) }}
-                style={{
-                  fontSize: 12, fontWeight: 600, padding: '3px 8px', borderRadius: 4,
-                  background: completedTaskUids.has(e.id) ? 'rgba(158,206,106,0.25)' : (e.color ?? 'var(--accent)'),
-                  borderLeft: completedTaskUids.has(e.id) ? `3px solid ${e.color ?? 'var(--accent)'}` : undefined,
-                  color: completedTaskUids.has(e.id) ? '#9ece6a' : '#1a1b26',
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  cursor: 'pointer',
-                }}>{completedTaskUids.has(e.id) ? `✓ ${e.title}` : e.title}</div>
-            ))}
-          </div>
+      {/* All-day strip — always visible */}
+      <div style={{ display: 'grid', gridTemplateColumns: '52px 1fr', borderBottom: '2px solid var(--border)', minHeight: 36, flexShrink: 0, background: 'rgba(255,255,255,0.02)' }}>
+        <div style={{ fontSize: 10, color: 'var(--muted)', padding: '6px 4px', textAlign: 'right', borderRight: '1px solid var(--border)' }}>all‑day</div>
+        <div style={{ padding: '3px 8px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {allDayEvs.map(e => (
+            <div key={e.id} title={e.title}
+              onClick={ev => { ev.stopPropagation(); onEventClick(e) }}
+              style={{
+                fontSize: 12, fontWeight: 600, padding: '3px 8px', borderRadius: 4,
+                background: completedTaskUids.has(e.id) ? 'rgba(158,206,106,0.25)' : (e.color ?? 'var(--accent)'),
+                borderLeft: completedTaskUids.has(e.id) ? `3px solid ${e.color ?? 'var(--accent)'}` : undefined,
+                color: completedTaskUids.has(e.id) ? '#9ece6a' : '#1a1b26',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                cursor: 'pointer',
+              }}>{completedTaskUids.has(e.id) ? `✓ ${e.title}` : e.title}</div>
+          ))}
         </div>
-      )}
+      </div>
 
       {/* Scrollable time grid */}
       <div ref={gridRef} style={{ flex: 1, overflowY: 'auto' }}>
@@ -1040,7 +1041,7 @@ function DayView({ viewDate, parsedEvents, today, configured, completedTaskUids 
 
           {/* Single day column */}
           <div
-            style={{ borderLeft: '1px solid var(--border)', position: 'relative', cursor: configured ? 'crosshair' : 'default' }}
+            style={{ borderLeft: '1px solid var(--border)', position: 'relative', cursor: configured ? 'crosshair' : 'default', overflow: 'hidden' }}
             onClick={e => {
               if (!configured) return
               const rect = e.currentTarget.getBoundingClientRect()
@@ -1062,14 +1063,16 @@ function DayView({ viewDate, parsedEvents, today, configured, completedTaskUids 
             })()}
 
             {timedEvs.map(ev => {
-              const top = topPx(ev._start)
-              const h = heightPx(ev._start, ev._end)
+              const top  = topPx(ev._start)
+              const h    = heightPx(ev._start, ev._end)
               const colW = 100 / ev._cols
+              const t    = Math.min(top, GRID_H - MIN_CHIP_PX)
+              const visH = Math.max(MIN_CHIP_PX, Math.min(h, GRID_H - t))
               return (
                 <div key={ev.id}
                   onClick={e => { e.stopPropagation(); onEventClick(ev) }}
                   style={{
-                    position: 'absolute', top, height: h,
+                    position: 'absolute', top: t, height: visH,
                     left: `${ev._col * colW}%`, width: `calc(${colW}% - 4px)`,
                     background: ev.color ?? 'var(--accent)',
                     borderRadius: 5, padding: '3px 8px', overflow: 'hidden', zIndex: 5, cursor: 'pointer',
@@ -1078,7 +1081,7 @@ function DayView({ viewDate, parsedEvents, today, configured, completedTaskUids 
                   <div style={{ fontSize: 12, fontWeight: 700, color: '#1a1b26', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {ev.title}
                   </div>
-                  {h > 36 && <div style={{ fontSize: 11, color: 'rgba(26,27,38,0.8)' }}>{fmtTime(ev._start)} – {fmtTime(ev._end)}</div>}
+                  {visH > 36 && <div style={{ fontSize: 11, color: 'rgba(26,27,38,0.8)' }}>{fmtTime(ev._start)} – {fmtTime(ev._end)}</div>}
                 </div>
               )
             })}
@@ -1423,7 +1426,7 @@ export default function CalendarPage() {
       })
       .catch(() => {})
   }, [])
-  useEffect(() => { if (gridRef.current) gridRef.current.scrollTop = HOUR_H }, [view])
+  useEffect(() => { if (gridRef.current) gridRef.current.scrollTop = 7 * HOUR_H }, [view])
 
   const today = new Date()
 

@@ -91,10 +91,10 @@
     "id": "b811debc-f71a-44f5-8910-1f73fdc53e23",
     "title": "Calendar Page Stabilization",
     "section": "Calendar",
-    "status": "In progress",
+    "status": "Complete",
     "priority": "High",
     "target_date": null,
-    "notes": "Mark ship-ready once CalDAV read + write are reliable, all three views (month/week/day) verified end-to-end, and the event creation flow is complete.",
+    "notes": "Ship-ready. All three views (month/week/day) implemented and verified. CalDAV read/write reliable with 5-min cache. Event creation, edit, and delete complete. 24-hour grid with end-of-day event clamping, all-day strip always visible, calendar panel with visibility toggle.",
     "depends_on": [
       "55a8ad33-c205-4587-8e3d-6acd7379ffe3",
       "3518575f-3f58-4812-beb3-b28ec946cc99"
