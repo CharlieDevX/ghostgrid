@@ -972,6 +972,123 @@ function WeekView({ viewDate, parsedEvents, today, configured, completedTaskUids
   )
 }
 
+// ── day view ──────────────────────────────────────────────────────────────────
+function DayView({ viewDate, parsedEvents, today, configured, completedTaskUids = new Set(), onSlotClick, onEventClick, gridRef }) {
+  const day = viewDate
+  const isToday = sameDay(day, today)
+
+  const allDayEvs = parsedEvents.filter(e => {
+    if (!e.allDay) return false
+    const s = new Date(e._start); s.setHours(0, 0, 0, 0)
+    const en = new Date(e._end); en.setHours(23, 59, 59, 999)
+    return day >= s && day <= en
+  })
+  const timedEvs = layoutEvents(parsedEvents.filter(e => !e.allDay && sameDay(e._start, day)))
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+      {/* Day header */}
+      <div style={{ display: 'grid', gridTemplateColumns: '52px 1fr', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+        <div />
+        <div style={{ padding: '10px 8px', textAlign: 'center', borderLeft: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{DAYS[day.getDay()]}</div>
+          <div style={{
+            fontSize: 28, fontWeight: 700, lineHeight: 1.3,
+            color: isToday ? '#1a1b26' : 'var(--text)',
+            background: isToday ? 'var(--accent)' : 'transparent',
+            borderRadius: '50%', width: 44, height: 44,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '4px auto 0',
+          }}>
+            {day.getDate()}
+          </div>
+        </div>
+      </div>
+
+      {/* All-day strip */}
+      {allDayEvs.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: '52px 1fr', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+          <div style={{ fontSize: 10, color: 'var(--muted)', padding: '6px 4px', textAlign: 'right' }}>all‑day</div>
+          <div style={{ borderLeft: '1px solid var(--border)', padding: '3px 8px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {allDayEvs.map(e => (
+              <div key={e.id} title={e.title}
+                onClick={ev => { ev.stopPropagation(); onEventClick(e) }}
+                style={{
+                  fontSize: 12, fontWeight: 600, padding: '3px 8px', borderRadius: 4,
+                  background: completedTaskUids.has(e.id) ? 'rgba(158,206,106,0.25)' : (e.color ?? 'var(--accent)'),
+                  borderLeft: completedTaskUids.has(e.id) ? `3px solid ${e.color ?? 'var(--accent)'}` : undefined,
+                  color: completedTaskUids.has(e.id) ? '#9ece6a' : '#1a1b26',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  cursor: 'pointer',
+                }}>{completedTaskUids.has(e.id) ? `✓ ${e.title}` : e.title}</div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Scrollable time grid */}
+      <div ref={gridRef} style={{ flex: 1, overflowY: 'auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '52px 1fr', height: GRID_H }}>
+          {/* Time labels */}
+          <div style={{ position: 'relative' }}>
+            {Array.from({ length: TOTAL_HOURS }, (_, i) => (
+              <div key={i} style={{ position: 'absolute', top: i * HOUR_H - 8, right: 6, fontSize: 10, color: 'var(--muted)', textAlign: 'right', lineHeight: 1 }}>
+                {fmt12(DAY_START + i)}
+              </div>
+            ))}
+          </div>
+
+          {/* Single day column */}
+          <div
+            style={{ borderLeft: '1px solid var(--border)', position: 'relative', cursor: configured ? 'crosshair' : 'default' }}
+            onClick={e => {
+              if (!configured) return
+              const rect = e.currentTarget.getBoundingClientRect()
+              const hour = Math.floor((e.clientY - rect.top) / HOUR_H) + DAY_START
+              onSlotClick({ date: day, hour: Math.min(hour, DAY_END - 1) })
+            }}
+          >
+            {Array.from({ length: TOTAL_HOURS }, (_, i) => (
+              <div key={i} style={{ position: 'absolute', top: i * HOUR_H, left: 0, right: 0, borderTop: '1px solid var(--border)', opacity: 0.5 }} />
+            ))}
+
+            {isToday && (() => {
+              const top = topPx(new Date())
+              return top >= 0 && top <= GRID_H ? (
+                <div style={{ position: 'absolute', top, left: 0, right: 0, zIndex: 10, borderTop: '2px solid var(--danger)', pointerEvents: 'none' }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--danger)', marginTop: -5, marginLeft: -4 }} />
+                </div>
+              ) : null
+            })()}
+
+            {timedEvs.map(ev => {
+              const top = topPx(ev._start)
+              const h = heightPx(ev._start, ev._end)
+              const colW = 100 / ev._cols
+              return (
+                <div key={ev.id}
+                  onClick={e => { e.stopPropagation(); onEventClick(ev) }}
+                  style={{
+                    position: 'absolute', top, height: h,
+                    left: `${ev._col * colW}%`, width: `calc(${colW}% - 4px)`,
+                    background: ev.color ?? 'var(--accent)',
+                    borderRadius: 5, padding: '3px 8px', overflow: 'hidden', zIndex: 5, cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#1a1b26', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {ev.title}
+                  </div>
+                  {h > 36 && <div style={{ fontSize: 11, color: 'rgba(26,27,38,0.8)' }}>{fmtTime(ev._start)} – {fmtTime(ev._end)}</div>}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── main component ────────────────────────────────────────────────────────────
 // ── day overview modal ───────────────────────────────────────────────────────
 function DayOverviewModal({ date, events, onClose, onEventClick, onAddEvent }) {
@@ -1332,17 +1449,21 @@ export default function CalendarPage() {
   // Navigation
   const prev = () => {
     if (view === 'month') setViewDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))
-    else setViewDate(d => addDays(d, -7))
+    else if (view === 'week') setViewDate(d => addDays(d, -7))
+    else setViewDate(d => addDays(d, -1))
   }
   const next = () => {
     if (view === 'month') setViewDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))
-    else setViewDate(d => addDays(d, 7))
+    else if (view === 'week') setViewDate(d => addDays(d, 7))
+    else setViewDate(d => addDays(d, 1))
   }
   const goToday = () => setViewDate(new Date())
 
   // Header label
   const headerLabel = view === 'month'
     ? `${MONTHS[viewDate.getMonth()]} ${viewDate.getFullYear()}`
+    : view === 'day'
+    ? fmtDateLong(viewDate)
     : (() => {
         const ws = startOfWeek(viewDate)
         const we = addDays(ws, 6)
@@ -1359,7 +1480,7 @@ export default function CalendarPage() {
 
         {/* View toggle */}
         <div style={{ display: 'flex', background: 'var(--border)', borderRadius: 7, padding: 2, gap: 1 }}>
-          {['month', 'week'].map(v => (
+          {['month', 'week', 'day'].map(v => (
             <button key={v} onClick={() => setView(v)} style={{
               background: view === v ? 'var(--surface)' : 'transparent',
               color: view === v ? 'var(--accent)' : 'var(--muted)',
@@ -1413,7 +1534,11 @@ export default function CalendarPage() {
                 onDayClick={day => setModal({ date: day, hour: 9, defaultAllDay: true })}
                 onEventClick={setSelectedEvent}
                 onDayOverviewClick={setDayOverview} />
-            : <WeekView viewDate={viewDate} parsedEvents={parsedEvents} today={today} configured={configured}
+            : view === 'week'
+            ? <WeekView viewDate={viewDate} parsedEvents={parsedEvents} today={today} configured={configured}
+                completedTaskUids={completedTaskUids}
+                onSlotClick={setModal} onEventClick={setSelectedEvent} gridRef={gridRef} />
+            : <DayView viewDate={viewDate} parsedEvents={parsedEvents} today={today} configured={configured}
                 completedTaskUids={completedTaskUids}
                 onSlotClick={setModal} onEventClick={setSelectedEvent} gridRef={gridRef} />
           }

@@ -91,7 +91,7 @@
     "id": "b811debc-f71a-44f5-8910-1f73fdc53e23",
     "title": "Calendar Page Stabilization",
     "section": "Calendar",
-    "status": "Planned",
+    "status": "In progress",
     "priority": "High",
     "target_date": null,
     "notes": "Mark ship-ready once CalDAV read + write are reliable, all three views (month/week/day) verified end-to-end, and the event creation flow is complete.",
