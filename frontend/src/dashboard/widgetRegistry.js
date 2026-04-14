@@ -1,4 +1,5 @@
 import SystemStats     from '../components/SystemStats'
+import ClaudeUsageWidget from '../components/ClaudeUsageWidget'
 import NetworkWidget   from '../components/NetworkWidget'
 import DockerWidget    from '../components/DockerWidget'
 import BookmarksWidget from '../components/BookmarksWidget'
@@ -45,6 +46,14 @@ export const WIDGET_REGISTRY = {
     defaultW: 2, defaultH: 2,
     minW: 2,     minH: 2,
     maxW: 4,     maxH: 10,
+  },
+  ClaudeUsageWidget: {
+    label:       'Claude Usage',
+    description: 'Claude.ai subscription usage — 5h window, weekly, and per-model',
+    component:   ClaudeUsageWidget,
+    defaultW: 2, defaultH: 2,
+    minW: 2,     minH: 2,
+    maxW: 4,     maxH: 4,
   },
 }
 

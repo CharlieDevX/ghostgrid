@@ -1,0 +1,226 @@
+[
+  {
+    "id": "b6ce43e8-a404-4d3a-bb8d-d126cbdf5225",
+    "title": "Draggable Grid Layout",
+    "section": "Core Dashboard",
+    "status": "Complete",
+    "priority": "High",
+    "target_date": null,
+    "notes": "react-grid-layout v2: drag, resize, snap to grid, persist layout to localStorage, add/remove widget panel.",
+    "depends_on": [],
+    "created_at": "2026-04-14T07:38:59.353368+00:00"
+  },
+  {
+    "id": "a807eb31-1668-4a52-82bd-7521fc91204c",
+    "title": "System Stats Widget",
+    "section": "Core Dashboard",
+    "status": "Complete",
+    "priority": "N/A",
+    "target_date": null,
+    "notes": "CPU usage, frequency, temperature, RAM and disk per mount point. Polls /api/system.",
+    "depends_on": [],
+    "created_at": "2026-04-14T07:38:59.353368+00:00"
+  },
+  {
+    "id": "044c546f-f438-45e7-8ac1-05dc766b3421",
+    "title": "Docker Widget",
+    "section": "Core Dashboard",
+    "status": "Complete",
+    "priority": "N/A",
+    "target_date": null,
+    "notes": "Container list with running/stopped status. Start/stop controls via /api/docker.",
+    "depends_on": [],
+    "created_at": "2026-04-14T07:38:59.353368+00:00"
+  },
+  {
+    "id": "19208fc7-9712-4551-a84c-810c53001d96",
+    "title": "Network Widget",
+    "section": "Core Dashboard",
+    "status": "Complete",
+    "priority": "N/A",
+    "target_date": null,
+    "notes": "Per-interface Tx/Rx bandwidth (kbps) and IP address. Polls /api/network.",
+    "depends_on": [],
+    "created_at": "2026-04-14T07:38:59.353368+00:00"
+  },
+  {
+    "id": "6c7e4b88-b1d0-4486-bf2e-714dddd5e447",
+    "title": "Notes Widget",
+    "section": "Core Dashboard",
+    "status": "Complete",
+    "priority": "N/A",
+    "target_date": null,
+    "notes": "Inline CRUD widget. Title + body, flat JSON store. Persistent via /api/notes.",
+    "depends_on": [],
+    "created_at": "2026-04-14T07:38:59.353368+00:00"
+  },
+  {
+    "id": "948194ce-e43e-49d2-a842-e67f26ea7520",
+    "title": "Bookmarks Widget",
+    "section": "Core Dashboard",
+    "status": "Complete",
+    "priority": "N/A",
+    "target_date": null,
+    "notes": "Name, URL, category. Full CRUD. Tag-based flex layout. /api/bookmarks.",
+    "depends_on": [],
+    "created_at": "2026-04-14T07:38:59.353368+00:00"
+  },
+  {
+    "id": "55a8ad33-c205-4587-8e3d-6acd7379ffe3",
+    "title": "iCloud CalDAV Sync",
+    "section": "Calendar",
+    "status": "In progress",
+    "priority": "High",
+    "target_date": null,
+    "notes": "Read sync is working with 5-minute in-process cache. Write endpoints exist in the backend (/api/calendar) but the frontend create-event flow is incomplete.",
+    "depends_on": [],
+    "created_at": "2026-04-14T07:38:59.353368+00:00"
+  },
+  {
+    "id": "3518575f-3f58-4812-beb3-b28ec946cc99",
+    "title": "Event Write & Edit UI",
+    "section": "Calendar",
+    "status": "In progress",
+    "priority": "Medium",
+    "target_date": null,
+    "notes": "Detail modal exists for editing existing events. Still needs: a clear \"+ New Event\" entry point in month/week/day views, and end-to-end testing of the CalDAV write path.",
+    "depends_on": [],
+    "created_at": "2026-04-14T07:38:59.353368+00:00"
+  },
+  {
+    "id": "b811debc-f71a-44f5-8910-1f73fdc53e23",
+    "title": "Calendar Page Stabilization",
+    "section": "Calendar",
+    "status": "Planned",
+    "priority": "High",
+    "target_date": null,
+    "notes": "Mark ship-ready once CalDAV read + write are reliable, all three views (month/week/day) verified end-to-end, and the event creation flow is complete.",
+    "depends_on": [
+      "55a8ad33-c205-4587-8e3d-6acd7379ffe3",
+      "3518575f-3f58-4812-beb3-b28ec946cc99"
+    ],
+    "created_at": "2026-04-14T07:38:59.353368+00:00"
+  },
+  {
+    "id": "b053d6f9-dd79-4bbb-9923-022af0fa3804",
+    "title": "Task Management & Projects",
+    "section": "Tasks",
+    "status": "Complete",
+    "priority": "High",
+    "target_date": null,
+    "notes": "Full CRUD with project grouping (colors), priorities (high/medium/low), due dates with overdue highlighting, sort by created/due/priority, completed-task toggle.",
+    "depends_on": [],
+    "created_at": "2026-04-14T07:38:59.353368+00:00"
+  },
+  {
+    "id": "02817e45-0f06-4388-b379-6cf749f43097",
+    "title": "Calendar Event Linking",
+    "section": "Tasks",
+    "status": "Complete",
+    "priority": "Medium",
+    "target_date": null,
+    "notes": "Tasks can be linked to iCloud calendar events. Due-date tasks surface on the calendar page as all-day events. Completed tasks show a checkmark badge on the event chip.",
+    "depends_on": [],
+    "created_at": "2026-04-14T07:38:59.353368+00:00"
+  },
+  {
+    "id": "f9307900-4198-4793-abd4-3d2f92e90471",
+    "title": "Roadmap Page",
+    "section": "Roadmap",
+    "status": "Complete",
+    "priority": "Medium",
+    "target_date": null,
+    "notes": "Card grid grouped by section, collapsible with chevron, slide-in detail panel (view/edit/create), dependency chips that navigate between cards, full CRUD backed by /api/roadmap.",
+    "depends_on": [],
+    "created_at": "2026-04-14T07:38:59.353368+00:00"
+  },
+  {
+    "id": "3e33c866-9fe9-4a92-8d67-9782ad4ddd65",
+    "title": "Research Page",
+    "section": "Research",
+    "status": "Planned",
+    "priority": "Medium",
+    "target_date": null,
+    "notes": "Two-panel layout (list left, editor right). Entry lifecycle: Raw \u2192 Breakdown \u2192 Post-ready. Fields: title, source URL, status, body, tags, created_at, updated_at. No AI writing assistant \u2014 writing happens in Claude.ai.",
+    "depends_on": [],
+    "created_at": "2026-04-14T07:38:59.353368+00:00"
+  },
+  {
+    "id": "efd730bb-aede-40cb-b189-52360ff54f47",
+    "title": "Journal Page",
+    "section": "Journal",
+    "status": "Planned",
+    "priority": "Low",
+    "target_date": null,
+    "notes": "Private daily writing \u2014 never published, never leaves GhostGrid. Date list left, full-width editor right. Fields: date, body, created_at.",
+    "depends_on": [],
+    "created_at": "2026-04-14T07:38:59.353368+00:00"
+  },
+  {
+    "id": "5837a7ea-af56-42ac-8401-6f7bc125fe32",
+    "title": "Calendar Agent",
+    "section": "Agent System",
+    "status": "Exploratory",
+    "priority": "Medium",
+    "target_date": null,
+    "notes": "Reads/writes calendar via LLM tool calls. Wraps existing /api/calendar endpoints. Example: \"What do I have on Friday?\" or \"Add my exam on Thursday at 2pm.\"",
+    "depends_on": [
+      "b811debc-f71a-44f5-8910-1f73fdc53e23"
+    ],
+    "created_at": "2026-04-14T07:38:59.353368+00:00"
+  },
+  {
+    "id": "ef14350a-1618-4570-9117-61a0d797fee6",
+    "title": "Tasks Agent",
+    "section": "Agent System",
+    "status": "Exploratory",
+    "priority": "Medium",
+    "target_date": null,
+    "notes": "Reads/writes tasks and projects via LLM tool calls. Wraps /api/tasks and /api/projects. Example: \"What tasks are overdue?\" or \"Mark the docker cleanup task as done.\"",
+    "depends_on": [
+      "b053d6f9-dd79-4bbb-9923-022af0fa3804",
+      "02817e45-0f06-4388-b379-6cf749f43097"
+    ],
+    "created_at": "2026-04-14T07:38:59.353368+00:00"
+  },
+  {
+    "id": "c71b9075-56e5-4f0f-86bc-7723e28da2fd",
+    "title": "Research Agent",
+    "section": "Agent System",
+    "status": "Exploratory",
+    "priority": "Low",
+    "target_date": null,
+    "notes": "CRUD on research entries; read by status or tag. Example: \"Do I have any notes on the Anthropic emotion paper?\" Build after Research page is ship-ready.",
+    "depends_on": [
+      "3e33c866-9fe9-4a92-8d67-9782ad4ddd65"
+    ],
+    "created_at": "2026-04-14T07:38:59.353368+00:00"
+  },
+  {
+    "id": "77621228-ca2c-4b08-9b12-671acc9f99b0",
+    "title": "Journal Agent",
+    "section": "Agent System",
+    "status": "Exploratory",
+    "priority": "Low",
+    "target_date": null,
+    "notes": "Read entries by date, create or append to today's entry. Privacy-sensitive \u2014 consider read-only access. Build after Journal page is ship-ready.",
+    "depends_on": [
+      "efd730bb-aede-40cb-b189-52360ff54f47"
+    ],
+    "created_at": "2026-04-14T07:38:59.353368+00:00"
+  },
+  {
+    "id": "f0e9b7d1-8552-4037-99b3-938845eba48d",
+    "title": "Mother Agent Orchestrator",
+    "section": "Agent System",
+    "status": "Exploratory",
+    "priority": "High",
+    "target_date": null,
+    "notes": "Top-level agent at /api/agent/chat. Routes queries to sub-agents, synthesizes cross-domain replies. Example: \"What's due this week and do I have research notes on it?\" Model: GPT-5 Nano via OpenRouter (~0/month).",
+    "depends_on": [
+      "5837a7ea-af56-42ac-8401-6f7bc125fe32",
+      "ef14350a-1618-4570-9117-61a0d797fee6"
+    ],
+    "created_at": "2026-04-14T07:38:59.353368+00:00"
+  }
+]
