@@ -22,8 +22,14 @@ const PRIORITIES = ['High', 'Medium', 'Low', 'N/A']
 function sc(status)   { return STATUS_COLORS[status]   || '#565f89' }
 function pc(priority) { return PRIORITY_COLORS[priority] || '#565f89' }
 
+const inlineBadgeSelect = (color) => ({
+  appearance: 'none', WebkitAppearance: 'none', border: 'none', outline: 'none',
+  fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4,
+  background: color + '22', color, cursor: 'pointer', flexShrink: 0,
+})
+
 // ── Roadmap Card ──────────────────────────────────────────────────────────────
-function RoadmapCard({ item, isActive, onClick }) {
+function RoadmapCard({ item, isActive, onClick, onQuickUpdate }) {
   const [hovered, setHovered] = useState(false)
   const snippet = item.notes && item.notes.length > 0
     ? (item.notes.length > 60 ? item.notes.slice(0, 60) + '…' : item.notes)
@@ -53,12 +59,22 @@ function RoadmapCard({ item, isActive, onClick }) {
           <span>{item.title}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <span style={{
-            fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4,
-            background: pc(item.priority) + '22', color: pc(item.priority), flexShrink: 0,
-          }}>
-            {item.priority}
-          </span>
+          <select
+            value={item.status}
+            onClick={e => e.stopPropagation()}
+            onChange={e => onQuickUpdate(item.id, 'status', e.target.value)}
+            style={inlineBadgeSelect(sc(item.status))}
+          >
+            {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <select
+            value={item.priority}
+            onClick={e => e.stopPropagation()}
+            onChange={e => onQuickUpdate(item.id, 'priority', e.target.value)}
+            style={inlineBadgeSelect(pc(item.priority))}
+          >
+            {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
           {item.target_date && (
             <span style={{ fontSize: 11, color: '#565f89', flexShrink: 0 }}>{item.target_date}</span>
           )}
@@ -73,8 +89,32 @@ function RoadmapCard({ item, isActive, onClick }) {
   )
 }
 
+function PanelBadgeSelect({ value, color, options, onChange }) {
+  return (
+    <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'stretch' }}>
+      <select
+        value={value}
+        onChange={onChange}
+        style={{ ...inlineBadgeSelect(color), fontSize: 12, paddingRight: 26 }}
+      >
+        {options.map(o => <option key={o} value={o}>{o}</option>)}
+      </select>
+      <div style={{
+        position: 'absolute', right: 0, top: 0, bottom: 0, width: 22,
+        borderLeft: `1px solid ${color}55`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        pointerEvents: 'none',
+      }}>
+        <svg width="8" height="5" viewBox="0 0 8 5" fill={color}>
+          <path d="M0 0.5L4 4.5L8 0.5" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+        </svg>
+      </div>
+    </div>
+  )
+}
+
 // ── Detail Panel ──────────────────────────────────────────────────────────────
-function DetailPanel({ item, items, panelMode, onClose, onEdit, onSave, onDelete, onNavigate }) {
+function DetailPanel({ item, items, panelMode, onClose, onEdit, onSave, onDelete, onNavigate, onQuickUpdate }) {
   const [form, setForm] = useState({
     title: '', section: '', status: 'Planned', priority: 'Medium',
     target_date: '', notes: '', depends_on: [],
@@ -180,18 +220,22 @@ function DetailPanel({ item, items, panelMode, onClose, onEdit, onSave, onDelete
         {panelMode === 'view' && item && (<>
           <div>
             <div style={labelStyle}>Status</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: sc(item.status) }} />
-              <span style={{ fontSize: 13, color: '#c0caf5' }}>{item.status}</span>
-            </div>
+            <PanelBadgeSelect
+              value={item.status}
+              color={sc(item.status)}
+              options={STATUSES}
+              onChange={e => onQuickUpdate(item.id, 'status', e.target.value)}
+            />
           </div>
 
           <div>
             <div style={labelStyle}>Priority</div>
-            <span style={{
-              fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
-              background: pc(item.priority) + '22', color: pc(item.priority),
-            }}>{item.priority}</span>
+            <PanelBadgeSelect
+              value={item.priority}
+              color={pc(item.priority)}
+              options={PRIORITIES}
+              onChange={e => onQuickUpdate(item.id, 'priority', e.target.value)}
+            />
           </div>
 
           {item.target_date && (
@@ -489,6 +533,15 @@ export default function RoadmapPage() {
     setPanelMode(null)
   }
 
+  async function handleQuickUpdate(id, field, value) {
+    await fetch(`${API}/roadmap/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [field]: value }),
+    })
+    await fetchItems()
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div
@@ -579,6 +632,7 @@ export default function RoadmapPage() {
                       item={item}
                       isActive={item.id === selectedId}
                       onClick={e => { e.stopPropagation(); handleCardClick(item) }}
+                      onQuickUpdate={handleQuickUpdate}
                     />
                   ))}
                 </div>
@@ -598,6 +652,7 @@ export default function RoadmapPage() {
         onSave={handleSave}
         onDelete={handleDelete}
         onNavigate={handleNavigate}
+        onQuickUpdate={handleQuickUpdate}
       />
     </div>
   )
