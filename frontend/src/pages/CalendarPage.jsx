@@ -1018,11 +1018,172 @@ function DayOverviewModal({ date, events, onClose, onEventClick, onAddEvent }) {
   )
 }
 
+// ── iCloud configuration modal ───────────────────────────────────────────────
+function ConfigureICloudModal({ onClose, onSaved, onCleared }) {
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [currentUsername, setCurrentUsername] = useState('')
+  const [testing, setTesting] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [clearing, setClearing] = useState(false)
+  const [confirmClear, setConfirmClear] = useState(false)
+  const [testResult, setTestResult] = useState(null) // {ok, msg}
+
+  useEffect(() => {
+    fetch('/api/calendar/config')
+      .then(r => r.json())
+      .then(d => {
+        if (d.configured) {
+          setCurrentUsername(d.username || '')
+          setUsername(d.username || '')
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const test = async () => {
+    setTesting(true)
+    setTestResult(null)
+    try {
+      const r = await fetch('/api/calendar/test-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.trim(), password: password.trim() }),
+      })
+      const d = await r.json()
+      if (d.ok) setTestResult({ ok: true, msg: `Connected — ${d.calendars} calendar${d.calendars !== 1 ? 's' : ''} found.` })
+      else setTestResult({ ok: false, msg: d.error || 'Connection failed.' })
+    } catch {
+      setTestResult({ ok: false, msg: 'Network error.' })
+    } finally { setTesting(false) }
+  }
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      const r = await fetch('/api/calendar/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.trim(), password: password.trim() }),
+      })
+      if (!r.ok) throw new Error(`Server error ${r.status}`)
+      onSaved()
+    } catch (err) {
+      setTestResult({ ok: false, msg: err.message || 'Failed to save credentials.' })
+    } finally { setSaving(false) }
+  }
+
+  const clear = async () => {
+    setClearing(true)
+    try {
+      const r = await fetch('/api/calendar/config', { method: 'DELETE' })
+      if (!r.ok) throw new Error(`Server error ${r.status}`)
+      onCleared()
+    } catch (err) {
+      setTestResult({ ok: false, msg: err.message || 'Failed to clear credentials.' })
+    } finally { setClearing(false) }
+  }
+
+  const canSave = username.trim() && password.trim()
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, width: 440, overflow: 'hidden' }}>
+        <div style={{ height: 4, background: 'var(--accent)' }} />
+        <div style={{ padding: 24 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>
+            {currentUsername ? 'iCloud Calendar Settings' : 'Connect iCloud Calendar'}
+          </div>
+          {currentUsername ? (
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 20, lineHeight: 1.5 }}>
+              Currently connected as{' '}
+              <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{currentUsername}</span>.
+              Enter a new app-specific password to re-authenticate, or clear to disconnect.
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 20, lineHeight: 1.5 }}>
+              Use your Apple ID and an app-specific password.
+              Generate one at <span style={{ color: 'var(--accent)' }}>appleid.apple.com</span> → Security → App-Specific Passwords.
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gap: 14, marginBottom: 16 }}>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 5 }}>Apple ID (email)</div>
+              <input
+                type="email"
+                placeholder="you@icloud.com"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 5 }}>App-Specific Password</div>
+              <input
+                type="password"
+                placeholder="xxxx-xxxx-xxxx-xxxx"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && canSave) save() }}
+              />
+            </div>
+          </div>
+
+          {testResult && (
+            <div style={{
+              background: testResult.ok ? 'rgba(158,206,106,0.1)' : 'rgba(247,118,142,0.1)',
+              border: `1px solid ${testResult.ok ? '#9ece6a' : '#f7768e'}`,
+              borderRadius: 8, padding: '8px 12px', marginBottom: 14,
+              color: testResult.ok ? '#9ece6a' : '#f7768e', fontSize: 12,
+            }}>
+              {testResult.ok ? '✓ ' : '✗ '}{testResult.msg}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button className="btn-ghost" disabled={!canSave || testing} onClick={test} style={{ fontSize: 12 }}>
+                {testing ? 'Testing…' : 'Test Connection'}
+              </button>
+              {currentUsername && !confirmClear && (
+                <button className="btn-ghost" onClick={() => setConfirmClear(true)} style={{ fontSize: 12, color: 'var(--danger, #f7768e)' }}>
+                  Clear
+                </button>
+              )}
+              {currentUsername && confirmClear && (
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <span style={{ fontSize: 11, color: '#f7768e' }}>Sure?</span>
+                  <button className="btn-danger" disabled={clearing} onClick={clear} style={{ fontSize: 11, padding: '2px 8px' }}>
+                    {clearing ? '…' : 'Yes'}
+                  </button>
+                  <button className="btn-ghost" onClick={() => setConfirmClear(false)} style={{ fontSize: 11, padding: '2px 8px' }}>No</button>
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn-ghost" onClick={onClose}>Cancel</button>
+              <button className="btn-primary" disabled={!canSave || saving} onClick={save}>
+                {saving ? 'Saving…' : 'Save & Connect'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function CalendarPage() {
   const [rawEvents, setRawEvents] = useState([])
   const [completedTaskUids, setCompletedTaskUids] = useState(new Set())
   const [configured, setConfigured] = useState(true)
   const [setupMsg, setSetupMsg] = useState('')
+  const [showConfig, setShowConfig] = useState(false)
+  const [syncError, setSyncError] = useState('')
   const [view, setView] = useState('month')
   const [viewDate, setViewDate] = useState(new Date())
   const [modal, setModal] = useState(null)
@@ -1035,14 +1196,18 @@ export default function CalendarPage() {
 
   const fetchEvents = () => {
     fetch('/api/calendar/events')
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error(`Server error ${r.status}`)
+        return r.json()
+      })
       .then(data => {
         setRawEvents(data.events || [])
         setConfigured(data.configured !== false)
         if (data.calendars?.length) setCalendars(data.calendars)
         if (!data.configured) setSetupMsg(data.message || '')
+        setSyncError('')
       })
-      .catch(() => {})
+      .catch(err => setSyncError(err.message || 'Could not reach the calendar API.'))
   }
 
   const toggleCalendar = (name) => {
@@ -1154,12 +1319,21 @@ export default function CalendarPage() {
         <button className="btn-ghost" onClick={goToday} style={{ padding: '4px 9px', fontSize: 12 }}>Today</button>
         <button className="btn-ghost" onClick={next} style={{ padding: '4px 9px', fontSize: 13 }}>›</button>
         {configured && <button className="btn-primary" onClick={() => setModal({ date: today, hour: 9 })} style={{ padding: '4px 10px', fontSize: 12 }}>+ Event</button>}
+        <button className="btn-ghost" onClick={() => setShowConfig(true)} title="iCloud Settings" style={{ padding: '4px 8px', fontSize: 13 }}>⚙</button>
       </div>
 
       {!configured && (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 18px', marginBottom: 16, color: 'var(--muted)', fontSize: 13 }}>
-          <span style={{ color: 'var(--accent)', fontWeight: 600 }}>iCloud not connected. </span>
-          {setupMsg} — showing GhostGrid tasks only.
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 18px', marginBottom: 16, fontSize: 13, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ color: 'var(--accent)', fontWeight: 600 }}>iCloud not connected.</span>
+          <span style={{ color: 'var(--muted)', flex: 1 }}>Showing GhostGrid tasks only.</span>
+          <button className="btn-primary" onClick={() => setShowConfig(true)} style={{ fontSize: 12, padding: '4px 12px' }}>Configure iCloud</button>
+        </div>
+      )}
+
+      {syncError && (
+        <div style={{ background: 'rgba(247,118,142,0.1)', border: '1px solid #f7768e', borderRadius: 10, padding: '10px 18px', marginBottom: 12, fontSize: 12, color: '#f7768e', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ flex: 1 }}>Sync error: {syncError}</span>
+          <button className="btn-ghost" onClick={() => setSyncError('')} style={{ fontSize: 11, padding: '2px 8px' }}>Dismiss</button>
         </div>
       )}
 
@@ -1224,6 +1398,14 @@ export default function CalendarPage() {
           calendars={calendars}
           onSave={saveEvent}
           onClose={() => setModal(null)}
+        />
+      )}
+
+      {showConfig && (
+        <ConfigureICloudModal
+          onClose={() => setShowConfig(false)}
+          onSaved={() => { setShowConfig(false); fetchEvents() }}
+          onCleared={() => { setShowConfig(false); setCalendars([]); setHidden(new Set()); fetchEvents() }}
         />
       )}
     </div>

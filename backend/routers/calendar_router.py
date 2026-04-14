@@ -18,6 +18,17 @@ CAL_COLORS_FILE = Path(__file__).parent.parent / "data" / "calendar_colors.json"
 
 _cache: dict = {"events": [], "calendars": [], "fetched_at": 0.0}
 CACHE_TTL = 300
+CALDAV_TIMEOUT = 15  # seconds
+
+
+def _dav_client(username: str, password: str):
+    import caldav
+    return caldav.DAVClient(
+        url="https://caldav.icloud.com",
+        username=username,
+        password=password,
+        timeout=CALDAV_TIMEOUT,
+    )
 
 
 # ── credentials ─────────────────────────────────────────────────────────────────
@@ -80,13 +91,7 @@ def _calendar_description(cal_name: str) -> str:
 # ── iCloud fetch ─────────────────────────────────────────────────────────────────
 
 def _fetch_icloud(username: str, password: str) -> tuple[list[dict], list[dict]]:
-    import caldav
-
-    client = caldav.DAVClient(
-        url="https://caldav.icloud.com",
-        username=username,
-        password=password,
-    )
+    client = _dav_client(username, password)
     principal = client.principal()
 
     start = datetime.now(timezone.utc) - timedelta(days=14)
@@ -248,6 +253,59 @@ def refresh_cache():
     return {"ok": True}
 
 
+# ── iCloud configuration ──────────────────────────────────────────────────────
+
+ENV_FILE = Path(__file__).parent.parent / ".env"
+
+class ICloudConfig(BaseModel):
+    username: str
+    password: str
+
+@router.get("/config")
+def get_config():
+    """Return the currently-configured username (never the password)."""
+    username, password = _credentials()
+    return {"configured": bool(username and password), "username": username or ""}
+
+@router.post("/config")
+def save_config(body: ICloudConfig):
+    """Save iCloud credentials to backend/.env and reload them into the process."""
+    from dotenv import set_key
+    ENV_FILE.touch(exist_ok=True)
+    username = body.username.strip()
+    password = body.password.strip()
+    set_key(str(ENV_FILE), "ICLOUD_USERNAME", username)
+    set_key(str(ENV_FILE), "ICLOUD_APP_PASSWORD", password)
+    os.environ["ICLOUD_USERNAME"] = username
+    os.environ["ICLOUD_APP_PASSWORD"] = password
+    _cache["fetched_at"] = 0.0
+    return {"ok": True}
+
+@router.delete("/config")
+def clear_config():
+    """Remove saved iCloud credentials from backend/.env and the running process."""
+    from dotenv import unset_key
+    if ENV_FILE.exists():
+        unset_key(str(ENV_FILE), "ICLOUD_USERNAME")
+        unset_key(str(ENV_FILE), "ICLOUD_APP_PASSWORD")
+    os.environ.pop("ICLOUD_USERNAME", None)
+    os.environ.pop("ICLOUD_APP_PASSWORD", None)
+    _cache["events"] = []
+    _cache["calendars"] = []
+    _cache["fetched_at"] = 0.0
+    return {"ok": True}
+
+@router.post("/test-connection")
+def test_connection(body: ICloudConfig):
+    """Test an iCloud CalDAV connection without saving credentials."""
+    try:
+        client = _dav_client(body.username.strip(), body.password.strip())
+        cals = client.principal().calendars()
+        return {"ok": True, "calendars": len(cals)}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 # ── events on a specific date (for task→calendar linking) ────────────────────────
 
 @router.get("/events-on-date")
@@ -292,10 +350,9 @@ def update_calendar(cal_name: str, body: CalendarUpdate):
     # If renaming, try to rename in iCloud via PROPPATCH
     if target_name != cal_name and _configured():
         try:
-            import caldav
             from caldav.lib import dav
             username, password = _credentials()
-            client = caldav.DAVClient(url="https://caldav.icloud.com", username=username, password=password)
+            client = _dav_client(username, password)
             for cal in client.principal().calendars():
                 if str(cal.name) == cal_name:
                     cal.set_properties([dav.DisplayName(target_name)])
@@ -325,9 +382,8 @@ def create_calendar(data: NewCalendar):
     if not _configured():
         raise HTTPException(status_code=503, detail="iCloud not configured")
 
-    import caldav
     username, password = _credentials()
-    client = caldav.DAVClient(url="https://caldav.icloud.com", username=username, password=password)
+    client = _dav_client(username, password)
     principal = client.principal()
 
     try:
@@ -359,11 +415,10 @@ def create_event(ev: NewEvent):
     if not _configured():
         raise HTTPException(status_code=503, detail="iCloud not configured")
 
-    import caldav
     from icalendar import Calendar, Event as IEvent
 
     username, password = _credentials()
-    client    = caldav.DAVClient(url="https://caldav.icloud.com", username=username, password=password)
+    client    = _dav_client(username, password)
     calendars = client.principal().calendars()
 
     target = next((c for c in calendars if str(c.name) == ev.calendar_name), calendars[0] if calendars else None)
@@ -398,8 +453,7 @@ def create_event(ev: NewEvent):
 
 def _find_caldav_event(username, password, uid):
     """iCloud doesn't reliably support event-by-uid REPORT, so scan manually."""
-    import caldav
-    client = caldav.DAVClient(url="https://caldav.icloud.com", username=username, password=password)
+    client = _dav_client(username, password)
     search_start = datetime.now(timezone.utc) - timedelta(days=365)
     search_end   = datetime.now(timezone.utc) + timedelta(days=365)
     for cal in client.principal().calendars():
