@@ -81,6 +81,26 @@ function fmtTime(d) {
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
 
+// Small wrapper around fetch that throws a useful Error on non-OK responses.
+// FastAPI's `detail` can be a string (HTTPException) or an array of objects
+// (Pydantic validation) — normalize both into a readable message.
+async function apiWrite(url, { method = 'GET', body } = {}) {
+  const res = await fetch(url, {
+    method,
+    headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}))
+    let msg
+    if (typeof d.detail === 'string') msg = d.detail
+    else if (Array.isArray(d.detail)) msg = d.detail.map(e => e.msg || JSON.stringify(e)).join(', ')
+    else if (d.detail) msg = JSON.stringify(d.detail)
+    throw new Error(msg || `Server error ${res.status}`)
+  }
+  return res
+}
+
 // ── event layout (basic column overlap) ─────────────────────────────────────
 function layoutEvents(events) {
   // sort by start
@@ -124,6 +144,7 @@ function EventDetailModal({ event, onClose, onSaved, onDeleted }) {
       endDate: `${e.getFullYear()}-${pad(e.getMonth()+1)}-${pad(e.getDate())}`,
       endTime: `${pad(e.getHours())}:${pad(e.getMinutes())}`,
       description: ev.description || '',
+      location: ev.location || '',
       allDay: ev.allDay,
     }
   }
@@ -133,29 +154,33 @@ function EventDetailModal({ event, onClose, onSaved, onDeleted }) {
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [writeError, setWriteError] = useState(null)
 
   const save = async () => {
     setSaving(true)
+    setWriteError(null)
+    const common = { title: form.title, description: form.description, location: form.location }
     const payload = form.allDay
-      ? { title: form.title, start: form.startDate, end: form.endDate, all_day: true, description: form.description }
-      : { title: form.title, start: `${form.startDate}T${form.startTime}`, end: `${form.endDate}T${form.endTime}`, all_day: false, description: form.description }
+      ? { ...common, start: form.startDate, end: form.endDate, all_day: true }
+      : { ...common, start: `${form.startDate}T${form.startTime}`, end: `${form.endDate}T${form.endTime}`, all_day: false }
     try {
-      await fetch(`/api/calendar/events/${event.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
+      await apiWrite(`/api/calendar/events/${event.id}`, { method: 'PUT', body: payload })
       await fetch('/api/calendar/refresh', { method: 'POST' })
       onSaved()
+    } catch (err) {
+      setWriteError(err.message || 'Failed to save.')
     } finally { setSaving(false) }
   }
 
   const remove = async () => {
     setDeleting(true)
+    setWriteError(null)
     try {
-      await fetch(`/api/calendar/events/${event.id}`, { method: 'DELETE' })
+      await apiWrite(`/api/calendar/events/${event.id}`, { method: 'DELETE' })
       await fetch('/api/calendar/refresh', { method: 'POST' })
       onDeleted()
+    } catch (err) {
+      setWriteError(err.message || 'Failed to delete.')
     } finally { setDeleting(false) }
   }
 
@@ -219,6 +244,13 @@ function EventDetailModal({ event, onClose, onSaved, onDeleted }) {
                   <span className="tag tag-blue">{event.calendarName}</span>
                   <span style={{ fontSize: 11, color: 'var(--muted)' }}>{event.source}</span>
                 </div>
+
+                {event.location && (
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <span style={{ fontSize: 16 }}>📍</span>
+                    <span style={{ color: 'var(--text)' }}>{event.location}</span>
+                  </div>
+                )}
               </div>
 
               {/* Description */}
@@ -232,6 +264,9 @@ function EventDetailModal({ event, onClose, onSaved, onDeleted }) {
               )}
 
               {/* Actions */}
+              {writeError && (
+                <div style={{ fontSize: 12, color: 'var(--danger)', marginBottom: 10 }}>{writeError}</div>
+              )}
               <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   {isEditable && !confirmDelete && (
@@ -282,10 +317,15 @@ function EventDetailModal({ event, onClose, onSaved, onDeleted }) {
                   </div>
                 )}
 
+                {field('Location', <input value={form.location} placeholder="Add a location..." onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />)}
+
                 {field('Description', <textarea value={form.description} placeholder="Add a note..." onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={{ minHeight: 80 }} />)}
 
+                {writeError && (
+                  <div style={{ fontSize: 12, color: 'var(--danger)' }}>{writeError}</div>
+                )}
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
-                  <button className="btn-ghost" onClick={() => { setForm(parseToForm(event)); setMode('view') }}>Cancel</button>
+                  <button className="btn-ghost" onClick={() => { setForm(parseToForm(event)); setMode('view'); setWriteError(null) }}>Cancel</button>
                   <button className="btn-primary" disabled={saving} onClick={save}>{saving ? 'Saving...' : 'Save Changes'}</button>
                 </div>
               </div>
@@ -298,7 +338,7 @@ function EventDetailModal({ event, onClose, onSaved, onDeleted }) {
 }
 
 // ── new event modal ──────────────────────────────────────────────────────────
-function NewEventModal({ date, hour, defaultAllDay = false, calendars = [], onSave, onClose }) {
+function NewEventModal({ date, hour, defaultAllDay = false, calendars = [], onSave, saveError, onClose }) {
   const pad = n => String(n).padStart(2, '0')
   const dateStr = `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`
 
@@ -310,15 +350,17 @@ function NewEventModal({ date, hour, defaultAllDay = false, calendars = [], onSa
     startTime: `${pad(hour)}:00`,
     endTime: `${pad(Math.min(hour + 1, 22))}:00`,
     description: '',
+    location: '',
     calendarName: calendars[0]?.name ?? '',
   })
 
   const submit = e => {
     e.preventDefault()
+    const common = { title: form.title, description: form.description, location: form.location, calendar_name: form.calendarName }
     if (allDay) {
-      onSave({ title: form.title, start: form.startDate, end: form.endDate, all_day: true, description: form.description })
+      onSave({ ...common, start: form.startDate, end: form.endDate, all_day: true })
     } else {
-      onSave({ title: form.title, start: `${form.startDate}T${form.startTime}`, end: `${form.endDate}T${form.endTime}`, all_day: false, description: form.description })
+      onSave({ ...common, start: `${form.startDate}T${form.startTime}`, end: `${form.endDate}T${form.endTime}`, all_day: false })
     }
   }
 
@@ -405,6 +447,12 @@ function NewEventModal({ date, hour, defaultAllDay = false, calendars = [], onSa
             </div>
           )}
 
+          {/* Location */}
+          {field('Location (optional)',
+            <input value={form.location} placeholder="Add a location..."
+              onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
+          )}
+
           {/* Description */}
           {field('Description (optional)',
             <textarea value={form.description} placeholder="Add a note..."
@@ -412,6 +460,9 @@ function NewEventModal({ date, hour, defaultAllDay = false, calendars = [], onSa
               style={{ minHeight: 64 }} />
           )}
 
+          {saveError && (
+            <div style={{ fontSize: 12, color: 'var(--danger)' }}>{saveError}</div>
+          )}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
             <button type="button" className="btn-ghost" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn-primary">Save to iCloud</button>
@@ -1192,6 +1243,7 @@ export default function CalendarPage() {
   const [calendars, setCalendars] = useState([])
   const [hidden, setHidden] = useState(new Set())
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(null)
   const gridRef = useRef(null)
 
   const fetchEvents = () => {
@@ -1266,11 +1318,15 @@ export default function CalendarPage() {
 
   const saveEvent = async (formData) => {
     setSaving(true)
+    setSaveError(null)
     try {
-      await fetch('/api/calendar/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) })
+      await apiWrite('/api/calendar/events', { method: 'POST', body: formData })
       await fetch('/api/calendar/refresh', { method: 'POST' })
       fetchEvents()
-    } finally { setSaving(false); setModal(null) }
+      setModal(null)
+    } catch (err) {
+      setSaveError(err.message || 'Failed to create event.')
+    } finally { setSaving(false) }
   }
 
   // Navigation
@@ -1397,7 +1453,8 @@ export default function CalendarPage() {
           defaultAllDay={modal.defaultAllDay ?? false}
           calendars={calendars}
           onSave={saveEvent}
-          onClose={() => setModal(null)}
+          saveError={saveError}
+          onClose={() => { setModal(null); setSaveError(null) }}
         />
       )}
 

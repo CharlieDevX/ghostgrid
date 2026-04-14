@@ -408,6 +408,7 @@ class NewEvent(BaseModel):
     end: str
     all_day: bool = False
     description: str = ""
+    location: str = ""
     calendar_name: str = ""
 
 @router.post("/events", status_code=201)
@@ -433,6 +434,7 @@ def create_event(ev: NewEvent):
     iev.add("uid",         str(uuid.uuid4()))
     iev.add("summary",     ev.title)
     iev.add("description", ev.description)
+    iev.add("location",    ev.location)
     iev.add("dtstamp",     datetime.now(timezone.utc))
 
     if ev.all_day:
@@ -478,6 +480,7 @@ class UpdateEvent(BaseModel):
     end: str
     all_day: bool = False
     description: str = ""
+    location: str = ""
 
 @router.put("/events/{uid}")
 def update_event(uid: str, ev: UpdateEvent):
@@ -499,6 +502,7 @@ def update_event(uid: str, ev: UpdateEvent):
     iev.add("uid",           uid)
     iev.add("summary",       ev.title)
     iev.add("description",   ev.description)
+    iev.add("location",      ev.location)
     iev.add("dtstamp",       datetime.now(timezone.utc))
     iev.add("last-modified", datetime.now(timezone.utc))
 
