@@ -679,7 +679,7 @@ function getMonthGrid(viewDate) {
 }
 
 // ── month view ────────────────────────────────────────────────────────────────
-function MonthView({ viewDate, parsedEvents, today, configured, completedTaskUids = new Set(), onDayClick, onEventClick }) {
+function MonthView({ viewDate, parsedEvents, today, configured, completedTaskUids = new Set(), onDayClick, onEventClick, onDayOverviewClick }) {
   const grid = getMonthGrid(viewDate)
   const weeks = []
   for (let i = 0; i < grid.length; i += 7) weeks.push(grid.slice(i, i + 7))
@@ -717,7 +717,7 @@ function MonthView({ viewDate, parsedEvents, today, configured, completedTaskUid
               return (
                 <div
                   key={di}
-                  onClick={() => configured && onDayClick(day)}
+                  onClick={() => configured && onDayOverviewClick(day)}
                   style={{
                     borderLeft: di > 0 ? '1px solid var(--border)' : 'none',
                     padding: '4px 5px',
@@ -731,8 +731,15 @@ function MonthView({ viewDate, parsedEvents, today, configured, completedTaskUid
                     minWidth: 0,
                   }}
                 >
-                  {/* Day number */}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  {/* Day number + add button */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <button
+                      onClick={ev => { ev.stopPropagation(); configured && onDayClick(day) }}
+                      title="Add event"
+                      style={{ background: 'transparent', border: 'none', color: 'var(--muted)', fontSize: 14, lineHeight: 1, cursor: configured ? 'pointer' : 'default', padding: '2px 3px', opacity: 0, transition: 'opacity 0.1s' }}
+                      onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+                      onMouseLeave={e => e.currentTarget.style.opacity = '0'}
+                    >+</button>
                     <div style={{
                       width: 26, height: 26, borderRadius: '50%',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -771,7 +778,7 @@ function MonthView({ viewDate, parsedEvents, today, configured, completedTaskUid
                     </div>
                   ))}
                   {dayEvs.length > MAX_SHOW && (
-                    <div style={{ fontSize: 11, color: 'var(--muted)', paddingLeft: 4 }}>
+                    <div onClick={ev => { ev.stopPropagation(); configured && onDayOverviewClick(day) }} style={{ fontSize: 11, color: 'var(--muted)', paddingLeft: 4, cursor: 'pointer' }}>
                       +{dayEvs.length - MAX_SHOW} more
                     </div>
                   )}
@@ -915,6 +922,102 @@ function WeekView({ viewDate, parsedEvents, today, configured, completedTaskUids
 }
 
 // ── main component ────────────────────────────────────────────────────────────
+// ── day overview modal ───────────────────────────────────────────────────────
+function DayOverviewModal({ date, events, onClose, onEventClick, onAddEvent }) {
+  const allDayEvs = events.filter(e => e.allDay)
+  const timedEvs  = events.filter(e => !e.allDay)
+
+  const HOUR_ROW = 56
+  let minHour = 8, maxHour = 18
+  if (timedEvs.length > 0) {
+    minHour = Math.min(...timedEvs.map(e => e._start.getHours()))
+    const rawMax = Math.max(...timedEvs.map(e => e._end.getHours() + (e._end.getMinutes() > 0 ? 1 : 0)))
+    maxHour = rawMax
+    if (maxHour - minHour < 2) maxHour = minHour + 2
+  }
+
+  return (
+    <div
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}
+    >
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, width: 500, maxHeight: '80vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{fmtDateLong(date)}</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button onClick={onAddEvent} style={{ background: 'var(--accent)', color: '#1a1b26', border: 'none', borderRadius: 6, padding: '4px 10px', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>+ Event</button>
+            <button onClick={onClose} style={{ background: 'transparent', color: 'var(--muted)', border: 'none', fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: '2px 6px' }}>✕</button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div style={{ overflowY: 'auto', flex: 1 }}>
+          {/* All-day events */}
+          {allDayEvs.length > 0 && (
+            <div style={{ padding: '12px 20px', borderBottom: timedEvs.length > 0 ? '1px solid var(--border)' : 'none' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>All Day</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {allDayEvs.map(e => (
+                  <div key={e.id} onClick={() => onEventClick(e)} style={{ background: e.color ?? 'var(--accent)', color: '#1a1b26', borderRadius: 4, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                    {e.title}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Timeline */}
+          {timedEvs.length > 0 && (
+            <div style={{ padding: '12px 20px 16px' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Timeline</div>
+              <div style={{ display: 'flex' }}>
+                {/* Hour labels */}
+                <div style={{ width: 48, flexShrink: 0 }}>
+                  {Array.from({ length: maxHour - minHour + 1 }, (_, i) => (
+                    <div key={i} style={{ height: HOUR_ROW, display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', paddingRight: 8, paddingTop: 3 }}>
+                      <span style={{ fontSize: 10, color: 'var(--muted)' }}>{fmt12(minHour + i)}</span>
+                    </div>
+                  ))}
+                </div>
+                {/* Events area */}
+                <div style={{ flex: 1, position: 'relative', borderLeft: '1px solid var(--border)', height: (maxHour - minHour) * HOUR_ROW }}>
+                  {Array.from({ length: maxHour - minHour + 1 }, (_, i) => (
+                    <div key={i} style={{ position: 'absolute', top: i * HOUR_ROW, left: 0, right: 0, borderTop: '1px solid var(--border)' }} />
+                  ))}
+                  {timedEvs.map(e => {
+                    const startFrac = (e._start.getHours() + e._start.getMinutes() / 60) - minHour
+                    const endFrac   = (e._end.getHours()   + e._end.getMinutes()   / 60) - minHour
+                    const top    = startFrac * HOUR_ROW
+                    const height = Math.max(22, (endFrac - startFrac) * HOUR_ROW)
+                    return (
+                      <div key={e.id} onClick={() => onEventClick(e)} style={{
+                        position: 'absolute', top, left: 4, right: 4, height,
+                        background: e.color ?? 'var(--accent)', borderRadius: 4,
+                        padding: '3px 7px', fontSize: 11, fontWeight: 600, color: '#1a1b26',
+                        overflow: 'hidden', cursor: 'pointer',
+                        display: 'flex', flexDirection: 'column', justifyContent: 'center',
+                      }}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.title}</span>
+                        {height > 32 && <span style={{ fontSize: 10, opacity: 0.8 }}>{fmtTime(e._start)} – {fmtTime(e._end)}</span>}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {events.length === 0 && (
+            <div style={{ padding: 32, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>No events on this day.</div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function CalendarPage() {
   const [rawEvents, setRawEvents] = useState([])
   const [completedTaskUids, setCompletedTaskUids] = useState(new Set())
@@ -924,6 +1027,7 @@ export default function CalendarPage() {
   const [viewDate, setViewDate] = useState(new Date())
   const [modal, setModal] = useState(null)
   const [selectedEvent, setSelectedEvent] = useState(null)
+  const [dayOverview, setDayOverview] = useState(null)
   const [calendars, setCalendars] = useState([])
   const [hidden, setHidden] = useState(new Set())
   const [saving, setSaving] = useState(false)
@@ -1077,13 +1181,31 @@ export default function CalendarPage() {
             ? <MonthView viewDate={viewDate} parsedEvents={parsedEvents} today={today} configured={configured}
                 completedTaskUids={completedTaskUids}
                 onDayClick={day => setModal({ date: day, hour: 9, defaultAllDay: true })}
-                onEventClick={setSelectedEvent} />
+                onEventClick={setSelectedEvent}
+                onDayOverviewClick={setDayOverview} />
             : <WeekView viewDate={viewDate} parsedEvents={parsedEvents} today={today} configured={configured}
                 completedTaskUids={completedTaskUids}
                 onSlotClick={setModal} onEventClick={setSelectedEvent} gridRef={gridRef} />
           }
         </div>
       </div>
+
+      {dayOverview && (
+        <DayOverviewModal
+          date={dayOverview}
+          events={parsedEvents.filter(e => {
+            if (e.allDay) {
+              const s = new Date(e._start); s.setHours(0,0,0,0)
+              const en = new Date(e._end); en.setHours(23,59,59,999)
+              return dayOverview >= s && dayOverview <= en
+            }
+            return sameDay(e._start, dayOverview)
+          })}
+          onClose={() => setDayOverview(null)}
+          onEventClick={e => { setDayOverview(null); setSelectedEvent(e) }}
+          onAddEvent={() => { setDayOverview(null); setModal({ date: dayOverview, hour: 9, defaultAllDay: true }) }}
+        />
+      )}
 
       {selectedEvent && (
         <EventDetailModal
