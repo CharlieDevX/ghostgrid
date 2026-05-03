@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 
-const API = 'http://localhost:8000/api'
-
 const priorityColor = { high: '#f7768e', medium: '#e0af68', low: '#9ece6a' }
 const priorityLabel = { high: 'HIGH', medium: 'MED', low: 'LOW' }
 
@@ -56,7 +54,7 @@ function TaskDetail({ task, projects, onSave, onDelete, onClose }) {
 
   async function save(patch) {
     const merged = { ...form, ...patch }
-    await fetch(`${API}/tasks/${task.id}`, {
+    await fetch(`/api/tasks/${task.id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(merged),
     })
@@ -66,7 +64,7 @@ function TaskDetail({ task, projects, onSave, onDelete, onClose }) {
   async function fetchLinkEvents() {
     if (!linkDate) return
     setLinkLoading(true)
-    const r = await fetch(`${API}/calendar/events-on-date?date=${linkDate}`)
+    const r = await fetch(`/api/calendar/events-on-date?date=${linkDate}`)
     setLinkEvents(await r.json())
     setLinkLoading(false)
   }
@@ -205,7 +203,7 @@ function NewProjectForm({ onCreated, onCancel }) {
   async function submit(e) {
     e.preventDefault()
     if (!name.trim()) return
-    const r = await fetch(`${API}/projects/`, {
+    const r = await fetch(`/api/projects/`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: name.trim(), color }),
     })
@@ -234,7 +232,7 @@ function NewTaskForm({ projectId, onCreated, onCancel }) {
   async function submit(e) {
     e.preventDefault()
     if (!title.trim()) return
-    const r = await fetch(`${API}/tasks/`, {
+    const r = await fetch(`/api/tasks/`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: title.trim(), project_id: projectId || null }),
     })
@@ -266,9 +264,9 @@ export default function TasksPage() {
 
   async function loadAll() {
     const [tr, pr, apr] = await Promise.all([
-      fetch(`${API}/tasks/`).then(r => r.json()),
-      fetch(`${API}/projects/`).then(r => r.json()),
-      fetch(`${API}/projects/?include_archived=true`).then(r => r.json()),
+      fetch(`/api/tasks/`).then(r => r.json()),
+      fetch(`/api/projects/`).then(r => r.json()),
+      fetch(`/api/projects/?include_archived=true`).then(r => r.json()),
     ])
     setTasks(tr)
     setProjects(pr)
@@ -300,14 +298,14 @@ export default function TasksPage() {
     })
 
   async function toggleTask(task) {
-    const r = await fetch(`${API}/tasks/${task.id}/toggle`, { method: 'POST' })
+    const r = await fetch(`/api/tasks/${task.id}/toggle`, { method: 'POST' })
     const updated = await r.json()
     setTasks(ts => ts.map(t => t.id === task.id ? updated : t))
     if (activeTask?.id === task.id) setActiveTask(updated)
   }
 
   async function deleteTask(id) {
-    await fetch(`${API}/tasks/${id}`, { method: 'DELETE' })
+    await fetch(`/api/tasks/${id}`, { method: 'DELETE' })
     setTasks(ts => ts.filter(t => t.id !== id))
     setActiveTask(null)
   }

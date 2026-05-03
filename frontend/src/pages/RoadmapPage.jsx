@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react'
 
-const API = 'http://localhost:8000/api'
-
 const STATUS_COLORS = {
   'Complete':    '#9ece6a',
   'In progress': '#e0af68',
@@ -412,7 +410,7 @@ export default function RoadmapPage() {
 
   async function fetchItems() {
     try {
-      const r = await fetch(`${API}/roadmap/`)
+      const r = await fetch(`/api/roadmap/`)
       if (!r.ok) throw new Error('server error')
       setItems(await r.json())
       setError(null)
@@ -495,7 +493,7 @@ export default function RoadmapPage() {
 
   async function handleSave(formData) {
     if (panelMode === 'create') {
-      const r = await fetch(`${API}/roadmap/`, {
+      const r = await fetch(`/api/roadmap/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -510,7 +508,7 @@ export default function RoadmapPage() {
       setSelectedId(created.id)
       setPanelMode('view')
     } else if (panelMode === 'edit' && selectedId) {
-      const r = await fetch(`${API}/roadmap/${selectedId}`, {
+      const r = await fetch(`/api/roadmap/${selectedId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -527,14 +525,14 @@ export default function RoadmapPage() {
 
   async function handleDelete() {
     if (!selectedId) return
-    await fetch(`${API}/roadmap/${selectedId}`, { method: 'DELETE' })
+    await fetch(`/api/roadmap/${selectedId}`, { method: 'DELETE' })
     await fetchItems()
     setSelectedId(null)
     setPanelMode(null)
   }
 
   async function handleQuickUpdate(id, field, value) {
-    await fetch(`${API}/roadmap/${id}`, {
+    await fetch(`/api/roadmap/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ [field]: value }),
