@@ -5,6 +5,7 @@ from routers import system, docker, bookmarks, notes, network
 from routers import calendar_router, tasks, projects
 from routers import claude_usage
 from routers import roadmap
+from routers import journal
 
 app = FastAPI(title="GhostGrid", version="0.1.0")
 
@@ -25,6 +26,7 @@ app.include_router(tasks.router, prefix="/api/tasks", tags=["tasks"])
 app.include_router(projects.router, prefix="/api/projects", tags=["projects"])
 app.include_router(claude_usage.router, prefix="/api/claude-usage", tags=["claude-usage"])
 app.include_router(roadmap.router, prefix="/api/roadmap", tags=["roadmap"])
+app.include_router(journal.router, prefix="/api/journal", tags=["journal"])
 
 
 @app.get("/api/health")

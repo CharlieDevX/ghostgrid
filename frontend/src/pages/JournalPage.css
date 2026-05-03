@@ -1,0 +1,143 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Journal Page — co-located stylesheet.
+
+   Per CLAUDE.md hybrid styling rule, this file is allowed only for things
+   inline styles cannot express: :hover, :focus-visible, @keyframes,
+   ::selection, ::-webkit-scrollbar, etc. Static layout/colors stay inline.
+   All selectors scoped under .journal-page so they cannot leak.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* ── keyframes ────────────────────────────────────────────────────────── */
+
+@keyframes journal-pulse {
+  0%, 100% { transform: scale(1);   opacity: 1;   }
+  50%      { transform: scale(1.4); opacity: 0.5; }
+}
+
+@keyframes journal-today-pulse {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 1;    }
+}
+
+@keyframes journal-fade-in {
+  from { opacity: 0; transform: translateY(-2px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* ── list rows ────────────────────────────────────────────────────────── */
+
+.journal-page .journal-list-row {
+  transition: background 180ms ease, border-color 180ms ease;
+}
+.journal-page .journal-list-row:hover {
+  background: rgba(122, 162, 247, 0.06);
+}
+.journal-page .journal-list-row:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.journal-page .journal-today-dot {
+  animation: journal-today-pulse 1.6s ease-in-out infinite;
+}
+
+/* ── new-entry button ─────────────────────────────────────────────────── */
+
+.journal-page .journal-new-entry-btn {
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+.journal-page .journal-new-entry-btn:hover {
+  background: rgba(122, 162, 247, 0.06);
+  color: var(--text);
+  border-color: var(--accent);
+}
+.journal-page .journal-new-entry-btn:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── save indicator ───────────────────────────────────────────────────── */
+
+.journal-page .journal-save-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+  transition: background 200ms ease, transform 200ms ease;
+}
+.journal-page .journal-save--saving .journal-save-dot {
+  animation: journal-pulse 1s ease-in-out infinite;
+}
+
+.journal-page .journal-save-label {
+  transition: color 200ms ease, opacity 200ms ease;
+}
+
+/* ── delete button (fades in only on header hover) ────────────────────── */
+
+.journal-page .journal-delete-btn {
+  opacity: 0;
+  transition: opacity 200ms ease, background 160ms ease, color 160ms ease;
+}
+.journal-page .journal-editor-header:hover .journal-delete-btn,
+.journal-page .journal-delete-btn:focus-visible {
+  opacity: 1;
+}
+.journal-page .journal-delete-btn:hover {
+  background: rgba(247, 118, 142, 0.1);
+}
+.journal-page .journal-delete-btn:focus-visible {
+  outline: 1px solid var(--danger);
+  outline-offset: 2px;
+}
+
+/* ── editor textarea ──────────────────────────────────────────────────── */
+
+.journal-page .journal-editor-textarea {
+  font-family: 'Lora', 'Charter', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  caret-color: var(--accent);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(232, 220, 196, 0.18) transparent;
+  transition: opacity 120ms ease;
+}
+.journal-page .journal-editor-textarea::selection {
+  background: rgba(122, 162, 247, 0.25);
+}
+.journal-page .journal-editor-textarea::-webkit-scrollbar {
+  width: 8px;
+}
+.journal-page .journal-editor-textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+.journal-page .journal-editor-textarea::-webkit-scrollbar-thumb {
+  background: rgba(232, 220, 196, 0.18);
+  border-radius: 4px;
+}
+.journal-page .journal-editor-textarea::-webkit-scrollbar-thumb:hover {
+  background: rgba(232, 220, 196, 0.32);
+}
+.journal-page .journal-editor-textarea::placeholder {
+  color: var(--paper-muted);
+  font-style: italic;
+}
+
+.journal-page .journal-editor-fading {
+  opacity: 0;
+}
+
+/* ── focus-mode dimming when editor is focused ────────────────────────── */
+
+.journal-page:has(.journal-editor-textarea:focus) .journal-list-panel {
+  opacity: 0.72;
+  transition: opacity 220ms ease;
+}
+.journal-page .journal-list-panel {
+  transition: opacity 220ms ease;
+}
+
+/* ── small inputs (date picker) ───────────────────────────────────────── */
+
+.journal-page .journal-date-input:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}

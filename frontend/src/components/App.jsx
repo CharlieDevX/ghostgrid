@@ -4,6 +4,7 @@ import Home from '../pages/Home'
 import CalendarPage from '../pages/CalendarPage'
 import TasksPage from '../pages/TasksPage'
 import RoadmapPage from '../pages/RoadmapPage'
+import JournalPage from '../pages/JournalPage'
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
         <Route path="calendar" element={<CalendarPage />} />
         <Route path="tasks" element={<TasksPage />} />
         <Route path="roadmap" element={<RoadmapPage />} />
+        <Route path="journal" element={<JournalPage />} />
       </Route>
     </Routes>
   )
