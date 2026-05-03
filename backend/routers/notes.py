@@ -1,13 +1,14 @@
 import json
 from datetime import datetime, timezone
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from data_dir import DATA_DIR
+
 router = APIRouter()
 
-DATA_FILE = Path(__file__).parent.parent / "data" / "notes.json"
+DATA_FILE = DATA_DIR / "notes.json"
 
 
 def _load() -> list[dict]:

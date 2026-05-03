@@ -1,9 +1,0 @@
-[
-  {
-    "id": 1,
-    "title": "SSH key",
-    "body": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGWFD1x9TDdOyxsr9cAwvympzhUa7/ij+z9ujDPqpjXu hoffm@SALEX12",
-    "created_at": "2026-04-08T06:20:46.256487+00:00",
-    "updated_at": "2026-04-08T06:20:46.256499+00:00"
-  }
-]

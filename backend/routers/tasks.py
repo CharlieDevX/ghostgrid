@@ -1,15 +1,16 @@
 import json
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
+from data_dir import DATA_DIR
+
 router = APIRouter()
 
-DATA_FILE = Path(__file__).parent.parent / "data" / "tasks.json"
+DATA_FILE = DATA_DIR / "tasks.json"
 
 
 def _load() -> list[dict]:

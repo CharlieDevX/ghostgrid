@@ -1,14 +1,15 @@
 import json
 import re
 from datetime import datetime, timezone
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from data_dir import DATA_DIR
+
 router = APIRouter()
 
-DATA_FILE = Path(__file__).parent.parent / "data" / "journal.json"
+DATA_FILE = DATA_DIR / "journal.json"
 
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 

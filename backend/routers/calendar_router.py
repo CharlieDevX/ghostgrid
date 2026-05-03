@@ -9,12 +9,14 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
+from data_dir import DATA_DIR
+
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 router = APIRouter()
 
-TASKS_FILE      = Path(__file__).parent.parent / "data" / "tasks.json"
-CAL_COLORS_FILE = Path(__file__).parent.parent / "data" / "calendar_colors.json"
+TASKS_FILE      = DATA_DIR / "tasks.json"
+CAL_COLORS_FILE = DATA_DIR / "calendar_colors.json"
 
 _cache: dict = {
     "events": [],

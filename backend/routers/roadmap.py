@@ -1,15 +1,16 @@
 import json
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from data_dir import DATA_DIR
+
 router = APIRouter()
 
-DATA_FILE = Path(__file__).parent.parent / "data" / "roadmap.json"
+DATA_FILE = DATA_DIR / "roadmap.json"
 
 VALID_STATUSES = {"Complete", "In progress", "Planned", "Exploratory"}
 VALID_PRIORITIES = {"High", "Medium", "Low", "N/A"}

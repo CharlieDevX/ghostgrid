@@ -1,13 +1,14 @@
 import json
-from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from data_dir import DATA_DIR
+
 router = APIRouter()
 
-DATA_FILE = Path(__file__).parent.parent / "data" / "bookmarks.json"
+DATA_FILE = DATA_DIR / "bookmarks.json"
 
 
 def _load() -> list[dict]:

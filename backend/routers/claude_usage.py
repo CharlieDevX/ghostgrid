@@ -1,13 +1,14 @@
 import json
 import requests
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from data_dir import DATA_DIR
+
 router = APIRouter()
 
-CONFIG_FILE = Path(__file__).parent.parent / "data" / "claude_config.json"
+CONFIG_FILE = DATA_DIR / "claude_config.json"
 
 _BASE = "https://claude.ai"
 _UA = (

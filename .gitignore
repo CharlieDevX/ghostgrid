@@ -1,5 +1,9 @@
 # Credentials — never commit real secrets
 backend/.env
+frontend/.env.local
+
+# Personal data — entries should not be tracked even when dev fallback uses backend/data/
+backend/data/journal.json
 
 # Claude/project brain docs — private
 *.md
