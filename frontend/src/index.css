@@ -10,6 +10,12 @@
   --text:      #c0caf5;
   --muted:     #565f89;
   --radius:    10px;
+
+  /* Journal — paper mode tokens */
+  --paper-bg-top:    #1a1816;
+  --paper-bg-bottom: #15130f;
+  --paper-text:      #e8dcc4;
+  --paper-muted:     #8a7e6a;
 }
 
 body {
