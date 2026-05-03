@@ -82,6 +82,19 @@ function fmtTime(d) {
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
 
+function ymd(d) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${dd}`
+}
+
+function startOfDay(d) {
+  const r = new Date(d)
+  r.setHours(0, 0, 0, 0)
+  return r
+}
+
 // Small wrapper around fetch that throws a useful Error on non-OK responses.
 // FastAPI's `detail` can be a string (HTTPException) or an array of objects
 // (Pydantic validation) — normalize both into a readable message.
@@ -730,6 +743,27 @@ function getMonthGrid(viewDate) {
   return grid
 }
 
+// Date range that's actually being shown for the current view.
+function visibleRangeFor(view, viewDate) {
+  if (view === 'month') {
+    const grid = getMonthGrid(viewDate)
+    return { start: startOfDay(grid[0]), end: startOfDay(grid[grid.length - 1]) }
+  }
+  if (view === 'week') {
+    const s = startOfWeek(viewDate)
+    return { start: s, end: addDays(s, 6) }
+  }
+  return { start: startOfDay(viewDate), end: startOfDay(viewDate) }
+}
+
+// Visible range plus a buffer so prev/next within the same neighborhood
+// doesn't trigger a refetch.
+function paddedRangeFor(view, viewDate) {
+  const v = visibleRangeFor(view, viewDate)
+  const pad = view === 'month' ? 30 : view === 'week' ? 14 : 7
+  return { start: addDays(v.start, -pad), end: addDays(v.end, pad) }
+}
+
 // ── month view ────────────────────────────────────────────────────────────────
 function MonthView({ viewDate, parsedEvents, today, configured, completedTaskUids = new Set(), onDayClick, onEventClick, onDayOverviewClick }) {
   const grid = getMonthGrid(viewDate)
@@ -1364,13 +1398,22 @@ export default function CalendarPage() {
   const [hidden, setHidden] = useState(new Set())
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(null)
+  const loadedRangeRef = useRef(null)
   const gridRef = useRef(null)
 
-  const fetchEvents = () => {
-    fetch('/api/calendar/events')
-      .then(r => {
-        if (!r.ok) throw new Error(`Server error ${r.status}`)
-        return r.json()
+  // range: {start: Date, end: Date} | undefined.
+  // When omitted, reuses the currently-loaded range (used by the 5-min poll
+  // and by mutation refetches that just want to refresh whatever's onscreen).
+  const fetchEvents = (range) => {
+    const r = range || loadedRangeRef.current
+    let url = '/api/calendar/events'
+    if (r?.start && r?.end) {
+      url += `?start=${ymd(r.start)}&end=${ymd(r.end)}`
+    }
+    fetch(url)
+      .then(res => {
+        if (!res.ok) throw new Error(`Server error ${res.status}`)
+        return res.json()
       })
       .then(data => {
         setRawEvents(data.events || [])
@@ -1378,6 +1421,9 @@ export default function CalendarPage() {
         if (data.calendars?.length) setCalendars(data.calendars)
         if (!data.configured) setSetupMsg(data.message || '')
         setSyncError('')
+        if (r?.start && r?.end) {
+          loadedRangeRef.current = r
+        }
       })
       .catch(err => setSyncError(err.message || 'Could not reach the calendar API.'))
   }
@@ -1411,9 +1457,18 @@ export default function CalendarPage() {
     fetchEvents()
   }
 
+  // Refetch when the visible range slides outside what we've already loaded.
+  // Initial mount also lands here (loadedRangeRef.current === null → not covered).
   useEffect(() => {
-    fetchEvents()
-    const id = setInterval(fetchEvents, 5 * 60 * 1000)
+    const visible = visibleRangeFor(view, viewDate)
+    const r = loadedRangeRef.current
+    const covered = r && r.start <= visible.start && r.end >= visible.end
+    if (!covered) fetchEvents(paddedRangeFor(view, viewDate))
+  }, [view, viewDate])
+
+  // 5-minute background poll — refreshes the currently-loaded range.
+  useEffect(() => {
+    const id = setInterval(() => fetchEvents(), 5 * 60 * 1000)
     return () => clearInterval(id)
   }, [])
 

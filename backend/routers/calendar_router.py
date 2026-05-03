@@ -16,9 +16,36 @@ router = APIRouter()
 TASKS_FILE      = Path(__file__).parent.parent / "data" / "tasks.json"
 CAL_COLORS_FILE = Path(__file__).parent.parent / "data" / "calendar_colors.json"
 
-_cache: dict = {"events": [], "calendars": [], "fetched_at": 0.0}
+_cache: dict = {
+    "events": [],
+    "calendars": [],
+    "range_start": None,   # datetime — covered range of cached events
+    "range_end": None,
+    "fetched_at": 0.0,
+}
 CACHE_TTL = 300
 CALDAV_TIMEOUT = 15  # seconds
+
+# Default window used when a caller doesn't specify a range
+DEFAULT_PAST_DAYS   = 14
+DEFAULT_FUTURE_DAYS = 90
+
+
+def _default_range() -> tuple[datetime, datetime]:
+    now = datetime.now(timezone.utc)
+    return now - timedelta(days=DEFAULT_PAST_DAYS), now + timedelta(days=DEFAULT_FUTURE_DAYS)
+
+
+def _parse_range_param(value: str | None) -> datetime | None:
+    """Accept YYYY-MM-DD or full ISO datetime; return tz-aware UTC datetime."""
+    if not value:
+        return None
+    if len(value) == 10:  # YYYY-MM-DD
+        return datetime.fromisoformat(value).replace(tzinfo=timezone.utc)
+    dt = datetime.fromisoformat(value)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
 
 
 def _dav_client(username: str, password: str):
@@ -90,12 +117,9 @@ def _calendar_description(cal_name: str) -> str:
 
 # ── iCloud fetch ─────────────────────────────────────────────────────────────────
 
-def _fetch_icloud(username: str, password: str) -> tuple[list[dict], list[dict]]:
+def _fetch_icloud(username: str, password: str, start: datetime, end: datetime) -> tuple[list[dict], list[dict]]:
     client = _dav_client(username, password)
     principal = client.principal()
-
-    start = datetime.now(timezone.utc) - timedelta(days=14)
-    end   = datetime.now(timezone.utc) + timedelta(days=90)
 
     events    = []
     calendars = []
@@ -191,17 +215,25 @@ def _tasks_as_events() -> list[dict]:
 
 # ── endpoints ────────────────────────────────────────────────────────────────────
 
-def _do_fetch():
+def _do_fetch(start: datetime, end: datetime):
     username, password = _credentials()
-    icloud_events, icloud_cals = _fetch_icloud(username, password)
-    _cache["events"]     = icloud_events
-    _cache["calendars"]  = icloud_cals
-    _cache["fetched_at"] = time.monotonic()
+    icloud_events, icloud_cals = _fetch_icloud(username, password, start, end)
+    _cache["events"]      = icloud_events
+    _cache["calendars"]   = icloud_cals
+    _cache["range_start"] = start
+    _cache["range_end"]   = end
+    _cache["fetched_at"]  = time.monotonic()
     return icloud_events, icloud_cals
 
 
+def _cache_covers(start: datetime, end: datetime) -> bool:
+    """True if the cached range fully contains [start, end]."""
+    cs, ce = _cache["range_start"], _cache["range_end"]
+    return bool(cs and ce and cs <= start and ce >= end)
+
+
 @router.get("/events")
-def get_events():
+def get_events(start: str | None = None, end: str | None = None):
     if not _configured():
         return {
             "events":      _tasks_as_events(),
@@ -210,8 +242,18 @@ def get_events():
             "message":     "iCloud not connected. Fill ICLOUD_USERNAME and ICLOUD_APP_PASSWORD in backend/.env",
         }
 
+    try:
+        req_start = _parse_range_param(start)
+        req_end   = _parse_range_param(end)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid date param: {e}")
+
+    if req_start is None or req_end is None:
+        req_start, req_end = _default_range()
+
     now = time.monotonic()
-    if now - _cache["fetched_at"] < CACHE_TTL and _cache["events"]:
+    fresh = now - _cache["fetched_at"] < CACHE_TTL and _cache["events"]
+    if fresh and _cache_covers(req_start, req_end):
         return {
             "events":     _cache["events"] + _tasks_as_events(),
             "calendars":  _cache["calendars"],
@@ -220,7 +262,7 @@ def get_events():
         }
 
     try:
-        icloud_events, icloud_cals = _do_fetch()
+        icloud_events, icloud_cals = _do_fetch(req_start, req_end)
         return {
             "events":     icloud_events + _tasks_as_events(),
             "calendars":  icloud_cals,
@@ -241,7 +283,8 @@ def get_calendars():
         return {"calendars": _cache["calendars"], "configured": True}
 
     try:
-        _, icloud_cals = _do_fetch()
+        s, e = _default_range()
+        _, icloud_cals = _do_fetch(s, e)
         return {"calendars": icloud_cals, "configured": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"CalDAV error: {e}")
@@ -318,7 +361,8 @@ def events_on_date(date: str):
     now = time.monotonic()
     if now - _cache["fetched_at"] >= CACHE_TTL or not _cache["events"]:
         try:
-            _do_fetch()
+            s, e = _default_range()
+            _do_fetch(s, e)
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"CalDAV error: {e}")
 
